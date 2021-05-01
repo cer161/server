@@ -14,14 +14,16 @@
 #include <ctype.h>
 #include <limits.h>
 #include <arpa/inet.h>
-
+#define PORT 5878
    
 int main(int argc, char const *argv[])
 {
 
-    int port = atoi(argv[1]);
-    
-
+    const char* input = malloc(sizeof(char)*100);
+	if(argc == 2){
+   		 input = argv[1];
+	}
+    printf("input: %s\n", input);
     int sock = 0, valread;
     struct sockaddr_in serv_addr;
     char *hello = "Hello from client";
@@ -33,7 +35,7 @@ int main(int argc, char const *argv[])
     }
    
     serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(port);
+    serv_addr.sin_port = htons(PORT);
        
     // Convert IPv4 and IPv6 addresses from text to binary form
     if(inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr)<=0) 
@@ -47,8 +49,8 @@ int main(int argc, char const *argv[])
         printf("\nConnection Failed \n");
         return -1;
     }
-    send(sock , hello , strlen(hello) , 0 );
-    printf("Hello message sent\n");
+    send(sock , input , strlen(input) , 0 );
+    //printf("Hello message sent\n");
     valread = read( sock , buffer, 1024);
     printf("%s\n",buffer );
     return 0;

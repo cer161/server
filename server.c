@@ -14,6 +14,8 @@
 #include <dirent.h>
 #include <ctype.h>
 #include <limits.h>
+#include <netdb.h>
+#include <signal.h>
 
 // define amount of connections to put into backlog
 #define BACKLOG 5
@@ -258,7 +260,7 @@ int main(int argc, char** argv){
     freeaddrinfo(info_list);
 
 	struct sigaction act;
-	act.sa_handler = handler;
+	//act.sa_handler = handler;
 	act.sa_flags = 0;
 	sigemptyset(&act.sa_mask);
 	sigaction(SIGINT, &act, NULL);
@@ -274,13 +276,13 @@ int main(int argc, char** argv){
 	while (running) {
     	// create argument struct for child thread
 		con = malloc(sizeof(struct connection));
-        con->addr_len = sizeof(struct sockaddr_storage);
+        	con->addr_len = sizeof(struct sockaddr_storage);
         	// addr_len is a read/write parameter to accept
         	// we set the initial value, saying how much space is available
         	// after the call to accept, this field will contain the actual address length
         
-        // wait for an incoming connection
-        con->fd = accept(sfd, (struct sockaddr *) &con->addr, &con->addr_len);
+       	 	// wait for an incoming connection
+        	con->fd = accept(sfd, (struct sockaddr *) &con->addr, &con->addr_len);
         	// we provide
         	// sfd - the listening socket
         	// &con->addr - a location to write the address of the remote host
@@ -339,16 +341,57 @@ void *connectionHandler(void *arg)
     
     struct connection *c = (struct connection *) arg;
     int error, nread;
+
+    ssize_t valread;
+    char buffer[1000] = {0};
+    if((valread = read( c->fd, buffer, 999))>0){
+		buffer[valread] = '\0';
+
+    }
+    printf("string sent by the client: %s\n", buffer);
     // input array which will contain, at most, 4 parameters TODO : function to parse input from client into this format
     // input[0] - command
     // input[1] - msg length
     // input[2] - key
     // input[3] - value, should be set to an empty string if command is not SET
-    char* input[4];
+    char* input[4]; 
+    char* params = strstr(buffer, "n");
+    char* temp = malloc(sizeof(char)*50);
+    char* temp2 = malloc(sizeof(char)*50);
+    char* temp3 = malloc(sizeof(char)*50);    
+    for(int i=0; i<3; i++){
+		temp[i] = buffer[i];
+     }
+    input[0] = temp; 
+    printf("command is %s\n", input[0]);
+    int j = 0;
+    printf("params: %s\n", params);
+    ++params;
+    while(params[j] != 'n'){
+                temp2[j] = params[j];
+                j++;
+    }
+    input[1] = temp2;
+    printf("msg length is %s\n", input[1]);
+    int chars = atoi(input[1]);
+     printf("params: %s\n", params);
+    int charsToPass = strlen(input[1]) + 1;
+    int m = 0;
+    for(int n=charsToPass; n<=chars; n++){
+		temp3[m] = params[n];	
+                m++;
+    }
+    
+    input[2] = temp3;
+    printf("key is %s\n", input[2]);
+    input[3] = "";
+  
+    //printf("value is %s\n", input[3]);
+    
     // msg returned by handler to client, indicates if operation was succesful or not
     char* retMsg;
     // error flag, 0 means no error, 1 means error, used when determining if the loop should continue
-    int error = 0;
+    error = 0;
     // temp char* to store messages retrieved from hash table, returned to client to display hash table contents when GET is used
     char* tempMsg;
     // length of key and message combined
@@ -383,6 +426,7 @@ void *connectionHandler(void *arg)
             // attempt to run SET command, return OKS on success
             else if(strcmp(input[0], "SET") == 0)
             {
+                //input[3] = 
                 insert(input[2],input[3]);
                 retMsg = "OKS";
             }
