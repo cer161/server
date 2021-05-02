@@ -23,6 +23,8 @@
 // server is running by default
 int running = 1;
 
+pthread_mutex_t locked;
+
 // node for use in hash table
 typedef struct node{
     char* key;
@@ -201,17 +203,21 @@ int main(int argc, char** argv){
         return EXIT_FAILURE;
     }
     char* port = argv[1];
-    /*
-    node root;
-    root.key = malloc(sizeof(char)*100);
-    root.value = malloc(sizeof(char)*100);
-    root.next = malloc(sizeof(node));
-    */
+
     //open and bind a listening socket on specified port and wait for incoming connection requests
     struct addrinfo hint, *info_list, *info;
     struct connection *con;
     int error, sfd;
     pthread_t tid;
+
+	 //Initialize mutex
+    	 error = pthread_mutex_init(&locked, NULL);
+   	 //Check if there was a problem creating the mutex and print to perror
+   	 if(error != 0){
+       		errno = error;
+        	perror("pthread_mutex_init");
+       		exit(1);
+    	}
 
     // initialize hints
     memset(&hint, 0, sizeof(struct addrinfo));
@@ -336,58 +342,62 @@ int main(int argc, char** argv){
     return 0;
 }
 
+//Helper method to send the message to the client
+void *sendMessageToClient(char* retMsg){
+
+
+
+}
+
+
 void *connectionHandler(void *arg)
 {
     
     struct connection *c = (struct connection *) arg;
     int error, nread;
-
-    ssize_t valread;
-    char buffer[1000] = {0};
-    if((valread = read( c->fd, buffer, 999))>0){
-		buffer[valread] = '\0';
-
-    }
-    printf("string sent by the client: %s\n", buffer);
-    // input array which will contain, at most, 4 parameters TODO : function to parse input from client into this format
     // input[0] - command
     // input[1] - msg length
     // input[2] - key
     // input[3] - value, should be set to an empty string if command is not SET
+
+    // lock to ensure that all behavior is deterministic when writing to/ reading from hash table / reading from client 
+    pthread_mutex_lock(&locked);
+
+    ssize_t valread;
+    char* buffer = malloc(sizeof(char)*100);
+    int i =0;
     char* input[4]; 
-    char* params = strstr(buffer, "n");
-    char* temp = malloc(sizeof(char)*50);
-    char* temp2 = malloc(sizeof(char)*50);
-    char* temp3 = malloc(sizeof(char)*50);    
-    for(int i=0; i<3; i++){
-		temp[i] = buffer[i];
-     }
-    input[0] = temp; 
-    printf("command is %s\n", input[0]);
-    int j = 0;
-    printf("params: %s\n", params);
-    ++params;
-    while(params[j] != 'n'){
-                temp2[j] = params[j];
-                j++;
-    }
-    input[1] = temp2;
-    printf("msg length is %s\n", input[1]);
-    int chars = atoi(input[1]);
-     printf("params: %s\n", params);
-    int charsToPass = strlen(input[1]) + 1;
-    int m = 0;
-    for(int n=charsToPass; n<=chars; n++){
-		temp3[m] = params[n];	
-                m++;
-    }
-    
-    input[2] = temp3;
-    printf("key is %s\n", input[2]);
     input[3] = "";
-  
-    //printf("value is %s\n", input[3]);
-    
+    int num_inputs = 3;
+    int bytes_to_read = 3;
+    while((valread = read( c->fd, buffer, bytes_to_read))>0 && i<(num_inputs)){
+		//buffer[valread] = '\0';
+                if(i==0){
+			//TODO close the connection succsssfully  if the user enters an invalid command
+			if(strcmp(buffer, "SET") != 0 && strcmp(buffer, "GET") != 0 && strcmp(buffer, "DEL") != 0){
+				errno = 1;
+				perror("Invalid command");
+                                //close the connection
+                                close(c->fd);
+				free(c);
+				running = 0;
+				return NULL;
+			}
+			if(strcmp(buffer, "SET") == 0) num_inputs = 4;
+		}
+                input[i] = malloc(sizeof(char)*50);
+                strcpy(input[i], buffer);
+		//only read the specified message length from the client
+		if(i==1){
+			bytes_to_read = atoi(buffer)-1;
+		}
+                i++;
+                buffer+=valread;
+
+    }
+   printf("command:%s\n", input[0]);
+   printf("message length:%d\n", atoi(input[1]));
+   printf("key:%s\n", input[2]);
     // msg returned by handler to client, indicates if operation was succesful or not
     char* retMsg;
     // error flag, 0 means no error, 1 means error, used when determining if the loop should continue
@@ -396,8 +406,8 @@ void *connectionHandler(void *arg)
     char* tempMsg;
     // length of key and message combined
     int rLen = strlen(input[2]) + strlen(input[3]);
-    // TODO : locks must be implemented to ensure that all behavior is deterministic when writing to/ reading from hash table
-    // also retMsg needs to be returned to client through a helper method that formats it appropriately 
+ 
+    // TODO also retMsg needs to be returned to client through a helper method that formats it appropriately 
 
     // while no errors have occured, process commands from client
     while(error == 0)
@@ -414,7 +424,7 @@ void *connectionHandler(void *arg)
                 if(search(input[2]))
                 {
                     tempMsg = search(input[2])->value;
-                    // msg indicates operation success
+                     msg indicates operation success
                     retMsg = "OKG";
                 }
                 // key not found, set return message to notify user, but do not cause error and end loop
@@ -457,6 +467,8 @@ void *connectionHandler(void *arg)
             error = 1;
         }
     }
+     //exiting critical section
+    pthread_mutex_lock(&locked);
     // close and free connection thread
     close(c->fd);
     free(c);
