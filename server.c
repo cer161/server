@@ -322,7 +322,7 @@ int main(int argc, char** argv){
             continue;
         }
 
-		// otherwise, detach the thread and wait for the next connection request
+	// otherwise, detach the thread and wait for the next connection request
         pthread_detach(tid);
 
         // unblock SIGINT
@@ -343,9 +343,9 @@ int main(int argc, char** argv){
 }
 
 //Helper method to send the message to the client
-void *sendMessageToClient(char* retMsg){
+void sendMessageToClient(char* retMsg){
 
-
+	printf("%s\n", retMsg);
 
 }
 
@@ -364,14 +364,24 @@ void *connectionHandler(void *arg)
     pthread_mutex_lock(&locked);
 
     ssize_t valread;
-    char* buffer = malloc(sizeof(char)*100);
     int i =0;
     char* input[4]; 
     input[3] = "";
+    input[1] = "";
     int num_inputs = 3;
     int bytes_to_read = 3;
-    while((valread = read( c->fd, buffer, bytes_to_read))>0 && i<(num_inputs)){
-		//buffer[valread] = '\0';
+    char* buffer= malloc(sizeof(char)*100);
+    char* chars = malloc(sizeof(char)*100);
+    int section = 0;
+    int msgLength = 9999;
+    int counter = 0;
+    // msg returned by handler to client, indicates if operation was succesful or not
+    char* retMsg;
+    // error flag, 0 means no error, 1 means error, used when determining if the loop should continue
+    error = 0;
+
+    while((valread = read( c->fd, buffer, bytes_to_read))>0){
+		buffer[valread] = '\0';
                 if(i==0){
 			//TODO close the connection succsssfully  if the user enters an invalid command
 			if(strcmp(buffer, "SET") != 0 && strcmp(buffer, "GET") != 0 && strcmp(buffer, "DEL") != 0){
@@ -383,25 +393,52 @@ void *connectionHandler(void *arg)
 				running = 0;
 				return NULL;
 			}
-			if(strcmp(buffer, "SET") == 0) num_inputs = 4;
-		}
-                input[i] = malloc(sizeof(char)*50);
-                strcpy(input[i], buffer);
-		//only read the specified message length from the client
-		if(i==1){
-			bytes_to_read = atoi(buffer)-1;
-		}
-                i++;
-                buffer+=valread;
+                   
+			//extremely confused why this isnt working to set the command not sure if i am dumb ?????
+			printf("buffer: %s\n", buffer);
+			input[i] = malloc(sizeof(char)*100);
+			strcpy(input[i], buffer);
+			printf("input0: %s\n", input[0]);
 
+			if(strcmp(buffer, "SET") == 0){
+				num_inputs = 4;
+			}
+
+			bytes_to_read = 1;
+			i++;
+			continue;
+		}
+		//read one byte at a time until we hit a newline
+		if(strcmp(buffer, "\n") != 0){
+			strcat(chars, buffer);
+			counter++;
+  			//Return error if the user attempts to add MORE characters than specified
+			if(counter==(msgLength-1)){
+				printf("ERROR");
+				retMsg = "ERR\nLEN\n"; 
+				error = 1;
+				sendMessageToClient(retMsg);	
+			}
+		}
+		else{
+			input[section] = malloc(sizeof(char)*100);
+			strcpy(input[section], chars);
+			strcpy(chars, "\0");
+			if(section == 1){
+				counter=0;
+				msgLength = atoi(input[section]);
+			}
+			section++;
+			if(section == num_inputs) break;
+		}
+          	i++;
     }
+
    printf("command:%s\n", input[0]);
    printf("message length:%d\n", atoi(input[1]));
    printf("key:%s\n", input[2]);
-    // msg returned by handler to client, indicates if operation was succesful or not
-    char* retMsg;
-    // error flag, 0 means no error, 1 means error, used when determining if the loop should continue
-    error = 0;
+   printf("value:%s\n", input[3]);
+  
     // temp char* to store messages retrieved from hash table, returned to client to display hash table contents when GET is used
     char* tempMsg;
     // length of key and message combined
@@ -414,6 +451,7 @@ void *connectionHandler(void *arg)
     {
         // if-else tree to parse commands, should restart after every succesful set of commands/parameters
         // check to see if length is correct, if not, set an error message
+	// Return error if the user attempts to add LESS characters than specified
         if(rLen == atoi(input[1]))
         {
             // attempt to run GET command, return OKG on success
@@ -424,7 +462,7 @@ void *connectionHandler(void *arg)
                 if(search(input[2]))
                 {
                     tempMsg = search(input[2])->value;
-                     msg indicates operation success
+                     //msg indicates operation success
                     retMsg = "OKG";
                 }
                 // key not found, set return message to notify user, but do not cause error and end loop
@@ -467,6 +505,8 @@ void *connectionHandler(void *arg)
             error = 1;
         }
     }
+	free(buffer);
+	free(chars);
      //exiting critical section
     pthread_mutex_lock(&locked);
     // close and free connection thread
