@@ -367,7 +367,7 @@ void *connectionHandler(void *arg)
     int i =0;
     char* input[4]; 
     input[3] = "";
-    input[1] = "";
+    input[0] = "";
     int num_inputs = 3;
     int bytes_to_read = 3;
     char* buffer= malloc(sizeof(char)*100);
@@ -375,6 +375,7 @@ void *connectionHandler(void *arg)
     int section = 0;
     int msgLength = 9999;
     int counter = 0;
+    char temp[4] = {0};
     // msg returned by handler to client, indicates if operation was succesful or not
     char* retMsg;
     // error flag, 0 means no error, 1 means error, used when determining if the loop should continue
@@ -393,12 +394,9 @@ void *connectionHandler(void *arg)
 				running = 0;
 				return NULL;
 			}
-                   
-			//extremely confused why this isnt working to set the command not sure if i am dumb ?????
-			printf("buffer: %s\n", buffer);
-			input[i] = malloc(sizeof(char)*100);
-			strcpy(input[i], buffer);
-			printf("input0: %s\n", input[0]);
+
+			input[0] = malloc(sizeof(char)*100);
+			strcpy(temp, buffer);
 
 			if(strcmp(buffer, "SET") == 0){
 				num_inputs = 4;
@@ -433,7 +431,7 @@ void *connectionHandler(void *arg)
 		}
           	i++;
     }
-
+   input[0] = temp;
    printf("command:%s\n", input[0]);
    printf("message length:%d\n", atoi(input[1]));
    printf("key:%s\n", input[2]);
