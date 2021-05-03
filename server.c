@@ -341,127 +341,22 @@ int main(int argc, char** argv){
     return 0;
 }
 
-//Helper method to send the message to the client
-//void sendMessageToClient(char* retMsg, FILE* fout){
-
-//        fprintf(fout, "%s\n", retMsg);
- //       fflush(fout);
-//}
-
-
-void *connectionHandler(void *arg)
+// helper method to execute a command once all of the required parts are found
+int execCommand(char* input[], FILE *fout, int num_inputs)
 {
-    // connection to socket
-    struct connection *c = (struct connection *) arg;
-    // create write file/buffer to send messages from server to client
-    int sock2 = dup(c->fd);
-    FILE *fout = fdopen(sock2, "w");
-    FILE *fin = fdopen (c->fd, "r");
-    int error, nread;
-    // input[0] - command
-    // input[1] - msg length
-    // input[2] - key
-    // input[3] - value, should be set to an empty string if command is not SET
-
-
-    ssize_t valread;
-    int i =0;
-    char* input[4];
-    input[3] = "";
-    int num_inputs = 3;
-    int bytes_to_read = 3;
-    char* buffer= malloc(sizeof(char)*100);
-    char* chars = malloc(sizeof(char)*100);
-    int section = 0;
-    int msgLength = 9999;
-    int counter = 0;
-    char temp[4] = {0};
-    int newInput = 0;
-    // msg returned by handler to client, indicates if operation was succesful or not
-    char* retMsg;
-    // error flag, 0 means no error, 1 means error, used when determining if the loop should continue
-    error = 0;
-    // while no errors have occured, process commands from client
-    while(error == 0)
-    {
-        i = 0;
-        while((valread = read( c->fd, buffer, bytes_to_read))>0)
-        {
-            buffer[valread] = '\0';
-                    if(i==0){
-                //TODO close the connection succsssfully  if the user enters an invalid command
-                if(strcmp(buffer, "SET") != 0 && strcmp(buffer, "GET") != 0 && strcmp(buffer, "DEL") != 0){
-                    errno = 1;
-                    perror("Invalid command");
-                     fprintf(fout, "ERR\nBAD\n");
-                     fflush(fout);
-                     error = 1;
-                    //close the connection
-                    close(c->fd);
-                    free(c);
-                    error = 1;
-                    return NULL;
-                }
-                newInput = 1;
-                input[0] = malloc(sizeof(char)*100);
-                strcpy(temp, buffer);
-
-                if(strcmp(buffer, "SET") == 0){
-                    num_inputs = 4;
-                }
-
-                bytes_to_read = 1;
-                i++;
-                continue;
-            }
-            //read one byte at a time until we hit a newline
-            if(strcmp(buffer, "\n") != 0){
-                strcat(chars, buffer);
-                counter++;
-                //Return error if the user attempts to add MORE characters than specified, shutdown thread
-                if(counter==(msgLength-1)){
-                    printf("ERROR");
-                   // retMsg = "ERR\nLEN";
-                    error = 1;
-                    fprintf(fout, "ERR\nBAD\n");
-                    fflush(fout);
-                    return NULL;
-                }
-            }
-            else{
-                input[section] = malloc(sizeof(char)*100);
-                strcpy(input[section], chars);
-                            *chars = '\0';
-                if(section == 1){
-                    counter=0;
-                    msgLength = atoi(input[section]);
-                }
-                section++;
-                if(section == num_inputs) break;
-            }
-                i++;
-        }
-
-   strcpy(input[0],temp);
-   printf("command:%s\n", input[0]);
-   printf("message length:%d\n", atoi(input[1]));
-   printf("key:%s\n", input[2]);
-   printf("value:%s\n", input[3]);
-
+    int error = 0;
     // temp char* to store messages retrieved from hash table, returned to client to display hash table contents when GET is used
     char* tempMsg;
     // length of key and message combined  (add num_inputs-2 to consider newlines)
     int rLen = strlen(input[2]) + strlen(input[3]) + (num_inputs-2);
-
-    // TODO also retMsg needs to be returned to client through a helper method that formats it appropriately
-
-        //sendMessageToClient("HELLO\n");
-        newInput = 0;
+    // debug tool to see what server interprets commands as
+    printf("command:%s\n", input[0]);
+    printf("message length:%d\n", atoi(input[1]));
+    printf("key:%s\n", input[2]);
+    printf("value:%s\n", input[3]);
         // if-else tree to parse commands, should restart after every succesful set of commands/parameters
         // check to see if length is correct, if not, set an error message
         // Return error if the user attempts to add LESS characters than specified
-
-
     // lock to ensure that all behavior is deterministic when writing to/ reading from hash table / reading from client
     pthread_mutex_lock(&locked);
         if(rLen == atoi(input[1]))
@@ -529,27 +424,119 @@ void *connectionHandler(void *arg)
             fflush(fout);
             error = 1;
         }
-      //  sendMessageToClient(retMsg,fout);
     //exiting critical section
     pthread_mutex_unlock(&locked);
-  printf("before freeing\n");
-        //Free dynamically allocated data
-        free(buffer);
-        free(chars);
-        for(int k=0; k<num_inputs; k++){
+    return error;
+}
+
+void *connectionHandler(void *arg)
+{
+    // connection to socket
+    struct connection *c = (struct connection *) arg;
+    // create write file/buffer to send messages from server to client
+    int sock2 = dup(c->fd);
+    FILE *fout = fdopen(sock2, "w");
+    FILE *fin = fdopen (c->fd, "r");
+    int error, nread;
+    // input[0] - command
+    // input[1] - msg length
+    // input[2] - key
+    // input[3] - value, should be set to an empty string if command is not SET
+
+
+    ssize_t valread;
+    int i =0;
+    char* input[4];
+    input[3] = "";
+    int num_inputs = 3;
+    int bytes_to_read = 3;
+    char* buffer= malloc(sizeof(char)*100);
+    char* chars = malloc(sizeof(char)*100);
+    int section = 0;
+    int msgLength = 9999;
+    int counter = 0;
+    char temp[4] = {0};
+    // flag to check if server should check for next input
+    int newInput = 0;
+    // msg returned by handler to client, indicates if operation was succesful or not
+    char* retMsg;
+    // error flag, 0 means no error, 1 means error, used when determining if the loop should continue
+    error = 0;
+    // while no errors have occured, process commands from client
+    while(error == 0)
+    {
+        while((valread = read( c->fd, buffer, bytes_to_read))>0)
+        {
+        buffer[valread] = '\0';
+        if(newInput == 0){
+                bytes_to_read = 3;
+                //TODO close the connection succsssfully  if the user enters an invalid command
+                if(strcmp(buffer, "SET") != 0 && strcmp(buffer, "GET") != 0 && strcmp(buffer, "DEL") != 0){
+                    errno = 1;
+                    perror("Invalid command");
+                     fprintf(fout, "ERR\nBAD\n");
+                     fflush(fout);
+                     error = 1;
+                    //close the connection
+                    close(c->fd);
+                    free(c);
+                    error = 1;
+                    return NULL;
+                }
+                newInput = 1;
+                input[0] = malloc(sizeof(char)*100);
+                strcpy(temp, buffer);
+
+                if(strcmp(buffer, "SET") == 0){
+                    num_inputs = 4;
+                }
+
+                bytes_to_read = 1;
+                i += 1; 
+                continue;
+            }
+            //read one byte at a time until we hit a newline
+            if(strcmp(buffer, "\n") != 0){
+                strcat(chars, buffer);
+                counter++;
+                //Return error if the user attempts to add MORE characters than specified, shutdown thread
+                if(counter==(msgLength-1)){
+                    printf("ERROR");
+                   // retMsg = "ERR\nLEN";
+                    error = 1;
+                    fprintf(fout, "ERR\nBAD\n");
+                    fflush(fout);
+                    return NULL;
+                }
+            }
+            else{
+                input[section] = malloc(sizeof(char)*100);
+                strcpy(input[section], chars);
+                            *chars = '\0';
+                if(section == 1){
+                    counter=0;
+                    msgLength = atoi(input[section]);
+                }
+                section++;
+                if(section == num_inputs)
+                {
+                    strcpy(input[0],temp);
+                    error = execCommand(input, fout, num_inputs);
+                    newInput = 0;
+                }
+            }
+                i++;
+        }
+    for(int k=0; k<num_inputs; k++){
                 free(input[k]);
         }
-    printf("next msg \n");
-    }
+    free(buffer);
+    free(chars);
     fclose(fout);
     fclose(fin);
     // close and free connection thread
    // close(c->fd);
     free(c);
     return NULL;
-}
-                                                
-                                                                                                                                                                                                                                                                                                           250,1         37%
-                                                                                                                                                                                                                                                                                                           165,1-8       18%
-
-                                                         
+    }
+}                                   
