@@ -375,6 +375,7 @@ void *connectionHandler(void *arg)
     int msgLength = 9999;
     int counter = 0;
     char temp[4] = {0};
+    int newInput = 0;
     // msg returned by handler to client, indicates if operation was succesful or not
     char* retMsg;
     // error flag, 0 means no error, 1 means error, used when determining if the loop should continue
@@ -393,7 +394,7 @@ void *connectionHandler(void *arg)
 				running = 0;
 				return NULL;
 			}
-
+			newInput = 1;
 			input[0] = malloc(sizeof(char)*100);
 			strcpy(temp, buffer);
 
@@ -445,9 +446,10 @@ void *connectionHandler(void *arg)
     // TODO also retMsg needs to be returned to client through a helper method that formats it appropriately 
 
     // while no errors have occured, process commands from client
-    while(error == 0)
+    while(error == 0 && newInput == 1)
     {
-	printf("in while loop/n");
+	//sendMessageToClient("HELLO\n");
+        newInput = 0;
         // if-else tree to parse commands, should restart after every succesful set of commands/parameters
         // check to see if length is correct, if not, set an error message
 	// Return error if the user attempts to add LESS characters than specified
