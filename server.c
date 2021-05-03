@@ -384,7 +384,7 @@ void *connectionHandler(void *arg)
     // while no errors have occured, process commands from client
     while(error == 0)
     {
-        i = 0;
+        
         while((valread = read( c->fd, buffer, bytes_to_read))>0)
         {
             buffer[valread] = '\0';
