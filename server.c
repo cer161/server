@@ -478,7 +478,7 @@ void *connectionHandler(void *arg)
                     //sendMessageToClient(tempMsg, fout);
                     //msg indicates operation success
                     //retMsg = "OKG";
-                    fprintf(fout, "OKG\n%d\n%s\n", strlen(tempMsg)+1, tempMsg);
+                    fprintf(fout, "OKG\n%zu\n%s\n", strlen(tempMsg)+1, tempMsg);
                     fflush(fout);
                 }
                 // key not found, set return message to notify user, but do not cause error and end loop
@@ -503,7 +503,7 @@ void *connectionHandler(void *arg)
                 tempMsg = search(input[2])->value;
                 if(delete(input[2]))
                 {
-                    fprintf(fout, "OKD\n%d\n%s\n", strlen(tempMsg)+1, tempMsg);
+                    fprintf(fout, "OKD\n%zu\n%s\n", strlen(tempMsg)+1, tempMsg);
                     fflush(fout);
     
                 }
