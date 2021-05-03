@@ -342,11 +342,11 @@ int main(int argc, char** argv){
 }
 
 //Helper method to send the message to the client
-void sendMessageToClient(char* retMsg, FILE* fout){
+//void sendMessageToClient(char* retMsg, FILE* fout){
 
-        fprintf(fout, "%s\n", retMsg);
-    fflush(fout);
-}
+//        fprintf(fout, "%s\n", retMsg);
+ //       fflush(fout);
+//}
 
 
 void *connectionHandler(void *arg)
@@ -384,7 +384,7 @@ void *connectionHandler(void *arg)
     // while no errors have occured, process commands from client
     while(error == 0)
     {
-        
+        i = 0;
         while((valread = read( c->fd, buffer, bytes_to_read))>0)
         {
             buffer[valread] = '\0';
@@ -393,6 +393,9 @@ void *connectionHandler(void *arg)
                 if(strcmp(buffer, "SET") != 0 && strcmp(buffer, "GET") != 0 && strcmp(buffer, "DEL") != 0){
                     errno = 1;
                     perror("Invalid command");
+                     fprintf(fout, "ERR\nBAD\n");
+                     fflush(fout);
+                     error = 1;
                     //close the connection
                     close(c->fd);
                     free(c);
@@ -418,9 +421,10 @@ void *connectionHandler(void *arg)
                 //Return error if the user attempts to add MORE characters than specified, shutdown thread
                 if(counter==(msgLength-1)){
                     printf("ERROR");
-                    retMsg = "ERR\nLEN";
+                   // retMsg = "ERR\nLEN";
                     error = 1;
-                    sendMessageToClient(retMsg, fout);
+                    fprintf(fout, "ERR\nBAD\n");
+                    fflush(fout);
                     return NULL;
                 }
             }
@@ -471,14 +475,17 @@ void *connectionHandler(void *arg)
                 {
                     tempMsg = search(input[2])->value;
                     printf("%s\n",tempMsg);
-                    sendMessageToClient(tempMsg, fout);
+                    //sendMessageToClient(tempMsg, fout);
                     //msg indicates operation success
-                    retMsg = "OKG";
+                    //retMsg = "OKG";
+                    fprintf(fout, "OKG\n%d\n%s\n", strlen(tempMsg)+1, tempMsg);
+                    fflush(fout);
                 }
                 // key not found, set return message to notify user, but do not cause error and end loop
                 else
                 {
-                    retMsg = "KNF";
+                   fprintf(fout, "KNF");
+                   fflush(fout);
                 }
             }
             // attempt to run SET command, return OKS on success
@@ -486,36 +493,43 @@ void *connectionHandler(void *arg)
             {
                 //input[3] =
                 insert(input[2],input[3]);
-                retMsg = "OKS";
+                fprintf(fout, "OKS");
+                fflush(fout);
                 printf("inserted %s at %s\n",input[3],input[2]);
             }
             // attempt to run DEL command, return OKD on success
             else if(strcmp(input[0], "DEL") == 0)
             {
+                tempMsg = search(input[2])->value;
                 if(delete(input[2]))
                 {
-                    retMsg = "OKD";
+                    fprintf(fout, "OKD\n%d\n%s\n", strlen(tempMsg)+1, tempMsg);
+                    fflush(fout);
+    
                 }
                 else
                 {
                     // key not found, set return message to notify user, but do not cause error and end loop
-                    retMsg = "KNF";
+                    fprintf(fout, "KNF");
+                    fflush(fout);
                 }
             }
             else
             {
                 // Message is malformed
-                retMsg = "ERR\nBAD";
+                fprintf(fout, "ERR\nBAD\n");
+                fflush(fout);
                 error = 1;
             }
         }
         else
         {
             // Message length is inconsistent with actual length
-            retMsg = "ERR\nLEN";
+            fprintf(fout, "ERR\nLEN\n");
+            fflush(fout);
             error = 1;
         }
-        sendMessageToClient(retMsg,fout);
+      //  sendMessageToClient(retMsg,fout);
     //exiting critical section
     pthread_mutex_unlock(&locked);
   printf("before freeing\n");
