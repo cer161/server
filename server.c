@@ -484,7 +484,7 @@ void *connectionHandler(void *arg)
                 // key not found, set return message to notify user, but do not cause error and end loop
                 else
                 {
-                   fprintf(fout, "KNF");
+                   fprintf(fout, "KNF\n");
                    fflush(fout);
                 }
             }
@@ -493,7 +493,7 @@ void *connectionHandler(void *arg)
             {
                 //input[3] =
                 insert(input[2],input[3]);
-                fprintf(fout, "OKS");
+                fprintf(fout, "OKS\n");
                 fflush(fout);
                 printf("inserted %s at %s\n",input[3],input[2]);
             }
@@ -510,7 +510,7 @@ void *connectionHandler(void *arg)
                 else
                 {
                     // key not found, set return message to notify user, but do not cause error and end loop
-                    fprintf(fout, "KNF");
+                    fprintf(fout, "KNF\n");
                     fflush(fout);
                 }
             }
