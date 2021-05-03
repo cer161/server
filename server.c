@@ -367,7 +367,6 @@ void *connectionHandler(void *arg)
     int i =0;
     char* input[4]; 
     input[3] = "";
-    input[0] = "";
     int num_inputs = 3;
     int bytes_to_read = 3;
     char* buffer= malloc(sizeof(char)*100);
@@ -421,7 +420,7 @@ void *connectionHandler(void *arg)
 		else{
 			input[section] = malloc(sizeof(char)*100);
 			strcpy(input[section], chars);
-			strcpy(chars, "\0");
+                        *chars = '\0';
 			if(section == 1){
 				counter=0;
 				msgLength = atoi(input[section]);
@@ -431,7 +430,8 @@ void *connectionHandler(void *arg)
 		}
           	i++;
     }
-   input[0] = temp;
+
+   strcpy(input[0],temp);
    printf("command:%s\n", input[0]);
    printf("message length:%d\n", atoi(input[1]));
    printf("key:%s\n", input[2]);
@@ -503,8 +503,12 @@ void *connectionHandler(void *arg)
             error = 1;
         }
     }
+	//Free dynamically allocated data
 	free(buffer);
 	free(chars);
+        for(int k=0; k<num_inputs; k++){
+		free(input[k]);
+	}
      //exiting critical section
     pthread_mutex_lock(&locked);
     // close and free connection thread
