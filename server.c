@@ -439,14 +439,15 @@ void *connectionHandler(void *arg)
   
     // temp char* to store messages retrieved from hash table, returned to client to display hash table contents when GET is used
     char* tempMsg;
-    // length of key and message combined
-    int rLen = strlen(input[2]) + strlen(input[3]);
- 
+    // length of key and message combined  (add num_inputs-2 to consider newlines)
+    int rLen = strlen(input[2]) + strlen(input[3]) + (num_inputs-2);
+
     // TODO also retMsg needs to be returned to client through a helper method that formats it appropriately 
 
     // while no errors have occured, process commands from client
     while(error == 0)
     {
+	printf("in while loop/n");
         // if-else tree to parse commands, should restart after every succesful set of commands/parameters
         // check to see if length is correct, if not, set an error message
 	// Return error if the user attempts to add LESS characters than specified
