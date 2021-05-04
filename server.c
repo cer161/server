@@ -475,9 +475,10 @@ void *connectionHandler(void *arg)
             // attempt to run DEL command, return OKD on success
             else if(strcmp(input[0], "DEL") == 0)
             {
-                tempMsg = search(input[2])->value;
-                if(delete(input[2]))
+                //tempMsg = search(input[2])->value;
+                if(search(input[2]) != NULL)
                 {
+                    tempMsg = delete(input[2]);
                     fprintf(fout, "OKD\n%zu\n%s\n", strlen(tempMsg)+1, tempMsg);
                     fflush(fout);
     
@@ -521,5 +522,3 @@ void *connectionHandler(void *arg)
     free(c);
     return NULL;
 }
-                                                
-                                               
