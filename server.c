@@ -129,11 +129,8 @@ int hashCode(char* key){
 node* search(char* key){
         //get the hash index
         int index = hashCode(key);
-	printf("INDEX %d\n", index);
         node* head = hashtable[index];
-	//printf("search head: %s\n", head->key);
         while(head != NULL){
-	printf("search head: %s\n", head->key);
                 if(strcmp(head->key, key) == 0){
                         return head;
                 }
@@ -264,7 +261,6 @@ int main(int argc, char** argv){
     freeaddrinfo(info_list);
 
         struct sigaction act;
-        //act.sa_handler = handler;
         act.sa_flags = 0;
         sigemptyset(&act.sa_mask);
         sigaction(SIGINT, &act, NULL);
@@ -276,7 +272,6 @@ int main(int argc, char** argv){
 
 
     // at this point sfd is bound and listening
-    printf("Waiting for connection\n");
         while (running) {
         // create argument struct for child thread
                 con = malloc(sizeof(struct connection));
@@ -361,6 +356,8 @@ void *connectionHandler(void *arg)
     int section;
     int msgLength;
     int counter;
+    char *keyToInsert = malloc(sizeof(char)*100);
+    char *valToInsert = malloc(sizeof(char)*100);;
     // msg returned by handler to client, indicates if operation was succesful or not
     char* retMsg;
     // error flag, 0 means no error, 1 means error, used when determining if the loop should continue
@@ -412,8 +409,6 @@ void *connectionHandler(void *arg)
                 counter++;
                 //Return error if the user attempts to add MORE characters than specified, shutdown thread
                 if(counter==(msgLength-(num_inputs-3))){
-                    printf("ERROR");
-                   // retMsg = "ERR\nLEN";
                     error = 1;
                     fprintf(fout, "ERR\nBAD\n");
                     fflush(fout);
@@ -423,7 +418,7 @@ void *connectionHandler(void *arg)
             else{
                 input[section] = malloc(sizeof(char)*100);
                 strcpy(input[section], chars);
-                            *chars = '\0';
+                *chars = '\0';
                 if(section == 1){
                     counter=0;
                     msgLength = atoi(input[section]);
@@ -437,21 +432,15 @@ void *connectionHandler(void *arg)
         }
 
    strcpy(input[0],temp);
-   printf("command:%s\n", input[0]);
-   printf("message length:%d\n", atoi(input[1]));
-   printf("key:%s\n", input[2]);
-   printf("value:%s\n", input[3]);
 
     // temp char* to store messages retrieved from hash table, returned to client to display hash table contents when GET is used
     char* tempMsg;
     // length of key and message combined  (add num_inputs-2 to consider newlines)
     int rLen = strlen(input[2]) + strlen(input[3]) + (num_inputs-2);
-    // TODO also retMsg needs to be returned to client through a helper method that formats it appropriately
 
         // if-else tree to parse commands, should restart after every succesful set of commands/parameters
         // check to see if length is correct, if not, set an error message
         // Return error if the user attempts to add LESS characters than specified
-
 
     // lock to ensure that all behavior is deterministic when writing to/ reading from hash table / reading from client
     pthread_mutex_lock(&locked);
@@ -460,37 +449,28 @@ void *connectionHandler(void *arg)
             // attempt to run GET command, return OKG on success
             if(strcmp(input[0], "GET") == 0)
             {
-		char* ptr = hashtable[hashCode("day")]->key;
-		printf("VALUE AFTER CALLING GET: %s\n", ptr);
                 // if key is in hash table, get the value associated, else return error
-                // TODO return tempMsg to client in similar way to retMSG
                 if(search(input[2]) != NULL)
                 {
                     tempMsg = search(input[2])->value;
-                    printf("%s\n",tempMsg);
-                    //sendMessageToClient(tempMsg, fout);
-                    //msg indicates operation success
-                    //retMsg = "OKG";
                     fprintf(fout, "OKG\n%zu\n%s\n", strlen(tempMsg)+1, tempMsg);
                     fflush(fout);
                 }
                 // key not found, set return message to notify user, but do not cause error and end loop
                 else
                 {
-			printf("input2: %s\n", input[2]);
                    	fprintf(fout, "KNF\n");
-                  	 fflush(fout);
+                  	fflush(fout);
                 }
             }
             // attempt to run SET command, return OKS on success
             else if(strcmp(input[0], "SET") == 0)
             {
-		insert(input[2],input[3]);
-		char* ptr = hashtable[hashCode("day")]->key;
-		printf("VALUE AFTER INSERT: %s\n", ptr);
+		strcpy(keyToInsert, input[2]);
+		strcpy(valToInsert, input[3]);
+		insert(keyToInsert, valToInsert);
                 fprintf(fout, "OKS\n");
                 fflush(fout);
-                printf("inserted %s at %s\n",input[3],input[2]);
             }
             // attempt to run DEL command, return OKD on success
             else if(strcmp(input[0], "DEL") == 0)
@@ -524,22 +504,20 @@ void *connectionHandler(void *arg)
             fflush(fout);
             error = 1;
         }
-      //  sendMessageToClient(retMsg,fout);
     //exiting critical section
     pthread_mutex_unlock(&locked);
-  printf("before freeing\n");
-        //Free dynamically allocated data
-        free(buffer);
-        free(chars);
- 	//for(int k = 0; k<num_inputs; k++){
-          //     free(input[k]);
-       // }
-    printf("next msg \n");
+  
+    free(buffer);
+    free(chars);
+    for(int k = 0; k<num_inputs; k++){
+              free(input[k]);
     }
+    }
+    free(valToInsert);
+    free(keyToInsert);
     fclose(fout);
     fclose(fin);
-    // close and free connection thread
-   // close(c->fd);
+   
     free(c);
     return NULL;
 }
