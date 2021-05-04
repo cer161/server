@@ -129,8 +129,11 @@ int hashCode(char* key){
 node* search(char* key){
         //get the hash index
         int index = hashCode(key);
+	printf("INDEX %d\n", index);
         node* head = hashtable[index];
+	//printf("search head: %s\n", head->key);
         while(head != NULL){
+	printf("search head: %s\n", head->key);
                 if(strcmp(head->key, key) == 0){
                         return head;
                 }
@@ -142,11 +145,6 @@ node* search(char* key){
 
 //Insert a key value pair into the hashtable
 void insert(char* key, char* data){
-        //Ensure keys and values do not contain "\0" or "\n"
-        //if(strchr(key, '\0') || strchr(key, '\n') || strchr(data, '\0') || strchr(data, '\n')){
-        //      printf("Keys and Values must not contain newlines or null terminators\n");
-        //      return;
-        //}
         int index = hashCode(key);
         node* new = malloc(sizeof(node));
         node* node = search(key);
@@ -462,9 +460,11 @@ void *connectionHandler(void *arg)
             // attempt to run GET command, return OKG on success
             if(strcmp(input[0], "GET") == 0)
             {
+		char* ptr = hashtable[hashCode("day")]->key;
+		printf("VALUE AFTER CALLING GET: %s\n", ptr);
                 // if key is in hash table, get the value associated, else return error
                 // TODO return tempMsg to client in similar way to retMSG
-                if(search(input[2]))
+                if(search(input[2]) != NULL)
                 {
                     tempMsg = search(input[2])->value;
                     printf("%s\n",tempMsg);
@@ -477,15 +477,17 @@ void *connectionHandler(void *arg)
                 // key not found, set return message to notify user, but do not cause error and end loop
                 else
                 {
-                   fprintf(fout, "KNF\n");
-                   fflush(fout);
+			printf("input2: %s\n", input[2]);
+                   	fprintf(fout, "KNF\n");
+                  	 fflush(fout);
                 }
             }
             // attempt to run SET command, return OKS on success
             else if(strcmp(input[0], "SET") == 0)
             {
-                //input[3] =
-                insert(input[2],input[3]);
+		insert(input[2],input[3]);
+		char* ptr = hashtable[hashCode("day")]->key;
+		printf("VALUE AFTER INSERT: %s\n", ptr);
                 fprintf(fout, "OKS\n");
                 fflush(fout);
                 printf("inserted %s at %s\n",input[3],input[2]);
@@ -529,9 +531,9 @@ void *connectionHandler(void *arg)
         //Free dynamically allocated data
         free(buffer);
         free(chars);
- 	for(int k = 0; k<num_inputs; k++){
-               free(input[k]);
-        }
+ 	//for(int k = 0; k<num_inputs; k++){
+          //     free(input[k]);
+       // }
     printf("next msg \n");
     }
     fclose(fout);
